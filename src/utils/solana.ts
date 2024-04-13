@@ -36,6 +36,7 @@ import { Keypair, PublicKey } from '@solana/web3.js'
 
 import { logger } from './logger'
 import { MintLayout } from '../types'
+import { getTokenMetadata } from '../metadata'
 
 function isTokenKnown(tokenMint: PublicKey): boolean {
   return knownTokens.has(tokenMint.toString())
@@ -154,11 +155,20 @@ export async function checkMintable(
   }
 }
 
+const abreviateAddress = (str: string) => {
+  return str.slice(0, 4) + '...' + str.slice(str.length - 4)
+}
+
 async function processRaydiumPool(
+  ctx: any,
   poolId: PublicKey,
   poolData: LiquidityStateV4
 ) {
   console.log('New token detected in pool', poolData.baseMint.toString())
+  const baseMint = poolData.baseMint
+
+  const tokenMetadata = await getTokenMetadata(baseMint, connection)
+  ctx.reply("New token: " + tokenMetadata?.symbol + " " + abreviateAddress(baseMint.toBase58()))
   const isNewBaseToken = !isTokenKnown(poolData.baseMint)
   //const isNewQuoteToken = !isTokenKnown(poolData.quoteMint);
   //console.log({ base: poolData.baseMint, quote: poolData.quoteMint });
@@ -244,13 +254,13 @@ async function processRaydiumPool(
   }
 }
 
-export async function findNewTokens(ctc: any) {
+export async function findNewTokens(ctx: any) {
   let initDate = new Date()
   const runTimestamp = Math.floor(new Date().getTime() / 1000)
   const raydiumSubscriptionId = connection.onProgramAccountChange(
     RAYDIUM_LIQUIDITY_PROGRAM_ID_V4,
     async (updatedAccountInfo) => {
-      // console.log('New token detected in pool')
+      console.log('New token detected in pool')
       initDate = new Date()
       const key = updatedAccountInfo.accountId.toString()
       const poolState = LIQUIDITY_STATE_LAYOUT_V4.decode(
@@ -261,7 +271,7 @@ export async function findNewTokens(ctc: any) {
       const poolId = updatedAccountInfo.accountId
       if (poolOpenTime > runTimestamp && !existing) {
         existingLiquidityPools.add(key)
-        const _ = processRaydiumPool(poolId, poolState)
+        const _ = processRaydiumPool(ctx,poolId, poolState)
       }
     },
     COMMITMENT_LEVEL,

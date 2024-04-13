@@ -6,7 +6,7 @@ import { menuNewPair } from './menuNewPair'
 export const menuMain = new Menu('menu-main', { onMenuOutdated }).dynamic(
   (ctx, range) => {
     range
-      .text('Buy New Pair', async () => {
+      .text('🚀 Snipe New Pairs', async () => {
         /// await showMenu(ctx, menuNewPair, 'newpair')
         showWindow(ctx, 'text', menuNewPair, 'newpair')
         ctx.session.temp.main.uiClass = 'newpair'
@@ -14,6 +14,6 @@ export const menuMain = new Menu('menu-main', { onMenuOutdated }).dynamic(
         //await showMenu(ctx, menuNewPair, 'newpair')
       })
       .row()
-      .text('B', (ctx) => ctx.reply('You pressed B!'))
+      .text('👛 Wallets', (ctx) => ctx.reply('You pressed B!'))
   }
 )

@@ -3,29 +3,28 @@ import 'dotenv/config'
 import { Bot, Context, GrammyError, SessionFlavor } from 'grammy'
 
 import { menuMain, menuNewPair } from './menus'
-import { fileSession } from './state'
+import { SessionData, fileSession } from './state'
 import { resetPrompt, showMain, showWindow, writeCtx } from './utils/bot'
 
-// @ts-ignore
 type MyContext = Context & SessionFlavor<SessionData>
 const bot = new Bot<MyContext>(process.env.BOT_TOKEN!)
 bot.use(fileSession)
 bot.use((ctx, next) => {
   console.log('ctx.session', ctx.session)
-  if (ctx.session.temp.timeout) {
-    clearTimeout(ctx.session.temp.timeout)
-  }
-  ctx.session.temp.timeout = setTimeout(() => {
-    if (ctx.session.settings.wallet) {
-      // ctx.session.settings.wallet = undefined
-      // ctx.session.settings.recipient = undefined
-      if (ctx.session.temp.prompt) {
-        ctx.api.deleteMessage(ctx.chat!.id, ctx.session.temp.prompt.message_id)
-        resetPrompt(ctx)
-      }
-      showMain(ctx)
-    }
-  }, 3600 * 1000)
+  // if (ctx.session.temp.timeout) {
+  //   clearTimeout(ctx.session.temp.timeout)
+  // }
+  // ctx.session.temp.timeout = setTimeout(() => {
+  //   if (ctx.session.settings.wallet) {
+  //     // ctx.session.settings.wallet = undefined
+  //     // ctx.session.settings.recipient = undefined
+  //     if (ctx.session.temp.prompt) {
+  //       ctx.api.deleteMessage(ctx.chat!.id, ctx.session.temp.prompt.message_id)
+  //       resetPrompt(ctx)
+  //     }
+  //     showMain(ctx)
+  //   }
+  // }, 3600 * 1000)
   return next()
 })
 bot.use(menuNewPair)

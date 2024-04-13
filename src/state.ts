@@ -22,17 +22,51 @@ export interface MinimalTokenAccountData {
 
 interface Settings {
   stopLossPercentage: number
+  takeProfitPercentage: number
   mintDisabled: boolean
   minLiquidity: number
-  amount: string
+  buyAmount: string
+  lpBurned: boolean
+}
+
+export interface SessionData {
+  settings: Settings
+  history: {
+    pending: any[]
+    transactions: any[]
+  }
+  main: {
+    uiClass: string
+  }
+  solana: {
+    wallet: Keypair | undefined
+    quoteToken: Token | undefined
+    quoteTokenAssociatedAddress: PublicKey | undefined
+    quoteAmount: TokenAmount | undefined
+    quoteMinPoolSizeAmount: TokenAmount | undefined
+    snipeList: SnipeType[]
+  }
+  temp: {
+    mixers: any
+    monitors: any
+    main?: {
+      message_id: number
+    },
+    prompt?: {
+      dataType: string
+      message_id: number
+    }
+  }
 }
 
 export const initSettings = (): Settings => {
   return {
+    lpBurned: false,
     stopLossPercentage: 10,
+    takeProfitPercentage: 50,
     mintDisabled: true,
     minLiquidity: 1,
-    amount: '0.01'
+    buyAmount: '0.01'
   }
 }
 
@@ -89,10 +123,12 @@ export const solanaData = {
   quoteToken: Token.WSOL,
   quoteAmount: new TokenAmount(Token.WSOL, QUOTE_AMOUNT, false),
   quoteMinPoolSizeAmount: new TokenAmount(Token.WSOL, MIN_POOL_SIZE, false),
-  quoteTokenAssociatedAddress: new PublicKey('So11111111111111111111111111111111111111112'),
+  quoteTokenAssociatedAddress: new PublicKey(
+    'So11111111111111111111111111111111111111112'
+  )
 }
 
-export const snipeList = <SnipeType[]>[];
+export const snipeList = <SnipeType[]>[]
 export const existingLiquidityPools: Set<string> = new Set<string>()
 export const knownTokens = new Set<string>()
 export const connection = new Connection(RPC_ENDPOINT, {

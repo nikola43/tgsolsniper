@@ -1,5 +1,5 @@
 import { Connection, PublicKey } from '@solana/web3.js'
-import { RPC_ENDPOINT, RPC_WEBSOCKET_ENDPOINT } from './constants'
+import { RPC_ENDPOINT, RPC_WEBSOCKET_ENDPOINT } from '../constants'
 
 const connection = new Connection(RPC_ENDPOINT, {
   wsEndpoint: RPC_WEBSOCKET_ENDPOINT

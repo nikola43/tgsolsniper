@@ -15,7 +15,7 @@ export const menuNewPair = new Menu('menu-newpair', { onMenuOutdated }).dynamic(
     range
       .text(
         () =>
-          `🚫 Mint disabled ${getStateCircle(
+          `🚫 Mint Disabled ${getStateCircle(
             readCtx(ctx, 'settings', 'mintDisabled')
           )}`,
         async (ctx) => {
@@ -26,7 +26,18 @@ export const menuNewPair = new Menu('menu-newpair', { onMenuOutdated }).dynamic(
       )
       .text(
         () =>
-          `💰 Min liquidity ${readCtx(ctx, 'settings', 'minLiquidity')} SOL`,
+          `🔥 LP Burned ${getStateCircle(
+            readCtx(ctx, 'settings', 'lpBurned')
+          )}`,
+        async (ctx) => {
+          const lpBurned = readCtx(ctx, 'settings', 'lpBurned')
+          writeCtx(ctx, 'settings', 'lpBurned', !lpBurned)
+          await ctx.menu.update()
+        }
+      )
+      .row()
+      .text(
+        () => `💵 Buy Amount ${readCtx(ctx, 'settings', 'minLiquidity')} SOL`,
         async (ctx) => {
           console.log('minLiquidity')
           sendKeyboard(
@@ -38,13 +49,14 @@ export const menuNewPair = new Menu('menu-newpair', { onMenuOutdated }).dynamic(
       )
       .text(
         () =>
-          `🔥 LP Burned ${getStateCircle(
-            readCtx(ctx, 'settings', 'mintDisabled')
-          )}`,
+          `💰 Min Liquidity ${readCtx(ctx, 'settings', 'minLiquidity')} SOL`,
         async (ctx) => {
-          const mintDisabled = readCtx(ctx, 'settings', 'mintDisabled')
-          writeCtx(ctx, 'settings', 'mintDisabled', !mintDisabled)
-          await ctx.menu.update()
+          console.log('minLiquidity')
+          sendKeyboard(
+            ctx,
+            'Set minimum liquidity (0) for disable',
+            'minLiquidity'
+          )
         }
       )
       .row()
@@ -67,7 +79,7 @@ export const menuNewPair = new Menu('menu-newpair', { onMenuOutdated }).dynamic(
       )
       .row()
       .text('Start', async (ctx) => {
-        await ctx.reply('Starting new pair search')
+        await ctx.reply('Listening new pairs...')
         findNewTokens(ctx)
       })
       .row()
