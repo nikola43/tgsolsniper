@@ -1,3 +1,4 @@
+import { Keyboard } from 'grammy'
 import { menuMain, menuNewPair } from '../menus'
 import { chatHistory } from '../state'
 
@@ -28,7 +29,9 @@ export const showWindow = async (
     if (!message.uiClass) {
       ctx.api.deleteMessage(ctx.chat.id, message.message_id).catch(() => {})
     } else {
-      ctx.api.deleteMessage(ctx.chat.id, ctx.session.temp.main.message_id).catch(() => {})
+      ctx.api
+        .deleteMessage(ctx.chat.id, ctx.session.temp.main.message_id)
+        .catch(() => {})
       if (ctx.session.temp.main.from.id === message.from.id) {
         ctx.session.temp.main = message
       } else ctx.session.temp.main = undefined
@@ -108,13 +111,17 @@ export const OnMessage = (ctx: any) => async () => {
       const msg = await ctx.reply('Please input a number between 0 and 100')
       setTimeout(() => {
         ctx.api.ctx.api
-          .deleteMessage(ctx.chat.id, ctx.message.message_id).catch(() => {})
+          .deleteMessage(ctx.chat.id, ctx.message.message_id)
+          .catch(() => {})
           .catch(() => {})
         ctx.api.ctx.api
-          .deleteMessage(ctx.chat.id, msg.message_id).catch(() => {})
+          .deleteMessage(ctx.chat.id, msg.message_id)
+          .catch(() => {})
           .catch(() => {})
 
-        ctx.api.deleteMessage(ctx.chat.id, ctx.message.message_id).catch(() => {})
+        ctx.api
+          .deleteMessage(ctx.chat.id, ctx.message.message_id)
+          .catch(() => {})
         ctx.api.deleteMessage(ctx.chat.id, msg.message_id).catch(() => {})
       }, 3000)
       return
@@ -124,14 +131,89 @@ export const OnMessage = (ctx: any) => async () => {
     writeCtx(ctx, 'stopLossPercentage', stopLossPercentage)
     resetPrompt(ctx)
     ctx.api.deleteMessage(ctx.chat.id, prompt.message_id).catch(() => {})
-    ctx.api.deleteMessage(ctx.chat.id, ctx.update.message.message_id).catch(() => {})
+    ctx.api
+      .deleteMessage(ctx.chat.id, ctx.update.message.message_id)
+      .catch(() => {})
 
     await showWindow(ctx, 'text', menuNewPair, 'newpair')
-  } else if (prompt && prompt.dataType === 'amount') {
+  } else if (prompt && prompt.dataType === 'minLiquidity') {
     console.log('amount')
   } else if (prompt && prompt.dataType === 'recipient') {
     console.log('recipient')
   } else {
-    ctx.api.deleteMessage(ctx.chat.id, ctx.update.message.message_id).catch(() => {})
+    ctx.api
+      .deleteMessage(ctx.chat.id, ctx.update.message.message_id)
+      .catch(() => {})
   }
 }
+
+export const buildKeyboard = async (
+  ctx: any,
+  text: string,
+  dataType: string
+) => {
+  const keyboard = new Keyboard().text('Cancel').oneTime()
+  await ctx.menu.update()
+  const prompt = await ctx.reply(text, {
+    reply_markup: keyboard
+  })
+  prompt.dataType = dataType
+  ctx.session.temp.prompt = prompt
+}
+
+export const readNumberInput =
+  (
+    ctx: any,
+    prompt: any,
+    dataType: string,
+    min: number,
+    max: number,
+    validationText = ''
+  ) =>
+  async () => {
+    const text = ctx.update.message.text
+    console.log('text', text)
+
+    if (!text) {
+      return
+    }
+
+    if (text === 'Cancel') {
+      console.log('Cancel')
+      resetPrompt(ctx)
+      //ctx.api.deleteMessage(ctx.chat.id, ctx.message.message_id).catch(() => {})
+      //ctx.api.deleteMessage(ctx.chat.id, ctx.update.message.message_id)
+      return
+    }
+
+    // if (text !== 'Cancel' ) {
+    //   return
+    // }
+
+    const textNumber = Number(text)
+    if (isNaN(textNumber)) {
+      ctx.reply('Please input a number')
+      return
+    }
+
+    if (textNumber < min || textNumber > max) {
+      const msg = await ctx.reply(validationText)
+      setTimeout(() => {
+        ctx.api
+          .deleteMessage(ctx.chat.id, ctx.message.message_id)
+          .catch(() => {})
+        ctx.api.deleteMessage(ctx.chat.id, msg.message_id).catch(() => {})
+      }, 3000)
+      return
+    }
+
+    console.log('textNumber', textNumber)
+    writeCtx(ctx, dataType, textNumber)
+    resetPrompt(ctx)
+    ctx.api.deleteMessage(ctx.chat.id, prompt.message_id).catch(() => {})
+    ctx.api
+      .deleteMessage(ctx.chat.id, ctx.update.message.message_id)
+      .catch(() => {})
+
+    await showWindow(ctx, 'text', menuNewPair, 'newpair')
+  }

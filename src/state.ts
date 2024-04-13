@@ -5,7 +5,7 @@ export const chatHistory: any[] = []
 interface Settings {
   stopLossPercentage: number
   mintDisabled: boolean
-  minLiquidity: boolean
+  minLiquidity: number
   amount: string
 }
 
@@ -13,7 +13,7 @@ export const initSettings = (): Settings => {
   return {
     stopLossPercentage: 10,
     mintDisabled: true,
-    minLiquidity: true,
+    minLiquidity: 1,
     amount: '0.01'
   }
 }
@@ -35,6 +35,11 @@ export const defaultSession = session({
     initial: () => ({
       mixers: {},
       monitors: {}
+    })
+  },
+  main: {
+    initial: () => ({
+      uiClass: 'main'
     })
   }
 })
