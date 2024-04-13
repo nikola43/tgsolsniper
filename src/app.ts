@@ -4,7 +4,7 @@ import { Bot, Context, GrammyError, SessionFlavor } from 'grammy'
 
 import { menuMain, menuNewPair } from './menus'
 import { fileSession } from './state'
-import { resetPrompt, showMain, showWindow, writeCtx } from './utils/botutils'
+import { resetPrompt, showMain, showWindow, writeCtx } from './utils/bot'
 
 // @ts-ignore
 type MyContext = Context & SessionFlavor<SessionData>
@@ -98,7 +98,7 @@ bot.on('message', async (ctx) => {
     }
 
     console.log('stopLossPercentage: ', textNumber)
-    writeCtx(ctx, 'stopLossPercentage', textNumber)
+    writeCtx(ctx, 'settings', 'stopLossPercentage', textNumber)
     resetPrompt(ctx)
     ctx.api.deleteMessage(ctx.chat.id, prompt.message_id).catch(() => {})
     ctx.api
@@ -107,7 +107,6 @@ bot.on('message', async (ctx) => {
 
     await showWindow(ctx, 'text', menuNewPair, 'newpair')
   } else if (prompt && prompt.dataType === 'minLiquidity') {
-    
     const text = ctx.update.message.text
     if (!text) {
       return
@@ -141,7 +140,7 @@ bot.on('message', async (ctx) => {
     }
 
     console.log('minLiquidity: ', minLiquidity)
-    writeCtx(ctx, 'minLiquidity', minLiquidity)
+    writeCtx(ctx, 'settings', 'minLiquidity', minLiquidity)
     resetPrompt(ctx)
     ctx.api.deleteMessage(ctx.chat.id, prompt.message_id).catch(() => {})
     ctx.api

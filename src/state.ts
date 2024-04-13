@@ -1,6 +1,24 @@
 import { session } from 'grammy'
 import { FileSessionStorage } from './classes/FileSessionStorage'
+import { Connection, Keypair, PublicKey } from '@solana/web3.js'
+import {
+  MIN_POOL_SIZE,
+  QUOTE_AMOUNT,
+  RPC_ENDPOINT,
+  RPC_WEBSOCKET_ENDPOINT
+} from './constants'
+import { LiquidityPoolKeys, Token, TokenAmount } from '@raydium-io/raydium-sdk'
+import { SnipeType } from './types'
+import { MinimalMarketLayoutV3 } from './market'
 export const chatHistory: any[] = []
+
+export interface MinimalTokenAccountData {
+  mint: PublicKey
+  address: PublicKey
+  poolKeys?: LiquidityPoolKeys
+  market?: MinimalMarketLayoutV3
+  buyPricePerToken?: number // Optional property to store the buy price per token
+}
 
 interface Settings {
   stopLossPercentage: number
@@ -41,6 +59,17 @@ export const defaultSession = session({
     initial: () => ({
       uiClass: 'main'
     })
+  },
+  solana: {
+    initial: () => ({
+      uiClass: 'main'
+    }),
+    wallet: undefined,
+    quoteToken: undefined,
+    quoteTokenAssociatedAddress: undefined,
+    quoteAmount: undefined,
+    quoteMinPoolSizeAmount: undefined,
+    snipeList: []
   }
 })
 
@@ -51,6 +80,24 @@ export const fileSession = async (ctx: any, next: any) => {
     FileSessionStorage.store(key, ctx.session.history)
   }
 }
+
+export const existingTokenAccounts: Map<string, MinimalTokenAccountData> =
+  new Map<string, MinimalTokenAccountData>()
+
+export const solanaData = {
+  wallet: new Keypair(),
+  quoteToken: Token.WSOL,
+  quoteAmount: new TokenAmount(Token.WSOL, QUOTE_AMOUNT, false),
+  quoteMinPoolSizeAmount: new TokenAmount(Token.WSOL, MIN_POOL_SIZE, false),
+  quoteTokenAssociatedAddress: new PublicKey('So11111111111111111111111111111111111111112'),
+}
+
+export const snipeList = <SnipeType[]>[];
+export const existingLiquidityPools: Set<string> = new Set<string>()
+export const knownTokens = new Set<string>()
+export const connection = new Connection(RPC_ENDPOINT, {
+  wsEndpoint: RPC_WEBSOCKET_ENDPOINT
+})
 
 /*
 

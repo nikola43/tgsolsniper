@@ -1,6 +1,6 @@
 /* eslint-disable space-before-function-paren */
 import { Menu } from '@grammyjs/menu'
-import { onMenuOutdated, showWindow } from '../utils/botutils'
+import { onMenuOutdated, showWindow } from '../utils/bot'
 import { menuNewPair } from './menuNewPair'
 
 export const menuMain = new Menu('menu-main', { onMenuOutdated }).dynamic(

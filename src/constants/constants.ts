@@ -1,5 +1,6 @@
 import { Commitment } from '@solana/web3.js'
-import { logger, retrieveEnvVariable } from '../utils'
+import { retrieveEnvVariable } from '../utils/env'
+import { logger } from '../utils/logger'
 
 export const NETWORK = 'mainnet-beta'
 export const COMMITMENT_LEVEL: Commitment = retrieveEnvVariable(

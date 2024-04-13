@@ -2,59 +2,74 @@
 import { Menu } from '@grammyjs/menu'
 
 import {
-  buildKeyboard,
+  sendKeyboard,
   getStateCircle,
   onMenuOutdated,
   readCtx,
   writeCtx
-} from '../utils/botutils'
+} from '../utils/bot'
+import { findNewTokens } from '../utils/solana'
 
 export const menuNewPair = new Menu('menu-newpair', { onMenuOutdated }).dynamic(
   (ctx, range) => {
     range
       .text(
         () =>
-          `${getStateCircle(readCtx(ctx, 'mintDisabled'))} Check mint disabled`,
+          `🚫 Mint disabled ${getStateCircle(
+            readCtx(ctx, 'settings', 'mintDisabled')
+          )}`,
         async (ctx) => {
-          const mintDisabled = readCtx(ctx, 'mintDisabled')
-          writeCtx(ctx, 'mintDisabled', !mintDisabled)
+          const mintDisabled = readCtx(ctx, 'settings', 'mintDisabled')
+          writeCtx(ctx, 'settings', 'mintDisabled', !mintDisabled)
           await ctx.menu.update()
         }
       )
       .text(
         () =>
-          `${getStateCircle(
-            Number(readCtx(ctx, 'minLiquidity')) !== 0
-          )} Minimum liquidity ${readCtx(ctx, 'minLiquidity')} SOL`,
+          `💰 Min liquidity ${readCtx(ctx, 'settings', 'minLiquidity')} SOL`,
         async (ctx) => {
           console.log('minLiquidity')
-          buildKeyboard(
+          sendKeyboard(
             ctx,
             'Set minimum liquidity (0) for disable',
             'minLiquidity'
           )
         }
       )
-      .row()
       .text(
-        () => `Slop Loss ${readCtx(ctx, 'stopLossPercentage')}%`,
+        () =>
+          `🔥 LP Burned ${getStateCircle(
+            readCtx(ctx, 'settings', 'mintDisabled')
+          )}`,
         async (ctx) => {
-          buildKeyboard(ctx, 'Input stop loss percentage', 'stopLossPercentage')
-          //   const keyboard = new Keyboard()
-          //     .text('Cancel')
-          //     .placeholder(
-          //       'eg, 10% (if price drops 10% from the buy price, sell it)'
-          //     )
-          //     .oneTime()
-          //   // await ctx.menu.update()
-          //   const prompt = await ctx.reply('Input stop loss percentage', {
-          //     reply_markup: keyboard
-          //   })
-          //   prompt.dataType = 'stopLossPercentage'
-          //   ctx.session.temp.prompt = prompt
-          // }
+          const mintDisabled = readCtx(ctx, 'settings', 'mintDisabled')
+          writeCtx(ctx, 'settings', 'mintDisabled', !mintDisabled)
+          await ctx.menu.update()
         }
       )
+      .row()
+      .text(
+        () => `📉 Slop Loss ${readCtx(ctx, 'settings', 'stopLossPercentage')}%`,
+        async (ctx) => {
+          sendKeyboard(ctx, 'Input stop loss percentage', 'stopLossPercentage')
+        }
+      )
+      .text(
+        () =>
+          `📈 Take Profit ${readCtx(ctx, 'settings', 'takeProfitPercentage')}%`,
+        async (ctx) => {
+          sendKeyboard(
+            ctx,
+            'Input stop loss percentage',
+            'takeProfitPercentage'
+          )
+        }
+      )
+      .row()
+      .text('Start', async (ctx) => {
+        await ctx.reply('Starting new pair search')
+        findNewTokens(ctx)
+      })
       .row()
       .text('Back', async (ctx) => {
         await ctx.menu!.parent!.update()

@@ -6,12 +6,12 @@ import { chatHistory } from '../state'
 //   ctx.api.ctx.api.deleteMessage(ctx.chat.id, id).catch(() => {})
 // }
 
-export const writeCtx = (ctx: any, key: string, value: any) => {
-  ctx.session.settings[key] = value
+export const writeCtx = (ctx: any, key: string, subkey: string, value: any) => {
+  ctx.session[key][subkey] = value
 }
 
-export const readCtx = (ctx: any, key: string) => {
-  return ctx.session.settings[key]
+export const readCtx = (ctx: any, key: string, subkey: string) => {
+  return ctx.session[key][subkey]
 }
 
 export const showWindow = async (
@@ -128,7 +128,7 @@ export const OnMessage = (ctx: any) => async () => {
     }
 
     console.log('stopLossPercentage', stopLossPercentage)
-    writeCtx(ctx, 'stopLossPercentage', stopLossPercentage)
+    writeCtx(ctx, 'settings', 'stopLossPercentage', stopLossPercentage)
     resetPrompt(ctx)
     ctx.api.deleteMessage(ctx.chat.id, prompt.message_id).catch(() => {})
     ctx.api
@@ -147,7 +147,7 @@ export const OnMessage = (ctx: any) => async () => {
   }
 }
 
-export const buildKeyboard = async (
+export const sendKeyboard = async (
   ctx: any,
   text: string,
   dataType: string
@@ -208,7 +208,7 @@ export const readNumberInput =
     }
 
     console.log('textNumber', textNumber)
-    writeCtx(ctx, dataType, textNumber)
+    writeCtx(ctx, 'settings', dataType, textNumber)
     resetPrompt(ctx)
     ctx.api.deleteMessage(ctx.chat.id, prompt.message_id).catch(() => {})
     ctx.api
