@@ -2,7 +2,7 @@
 import { Menu } from '@grammyjs/menu'
 import { onMenuOutdated, showMenu } from '../botutils/utils'
 
-const menuMain = new Menu('menu-main', { onMenuOutdated }).dynamic(
+export const menuMain = new Menu('menu-main', { onMenuOutdated }).dynamic(
   (ctx, range) => {
     range
       .text('Buy New Pair', () => showMenu())

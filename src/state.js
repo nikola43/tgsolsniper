@@ -1,9 +1,9 @@
 import { session } from 'grammy'
 import { FileSessionStorage } from './classes/FileSessionStorage'
 
-const chatHistory = []
+export const chatHistory = []
 
-const initSettings = () => {
+export const initSettings = () => {
   return {
     stopLossPercentage: 10,
     mintDisabled: true,
@@ -12,7 +12,7 @@ const initSettings = () => {
   }
 }
 
-const defaultSession = session({
+export const defaultSession = session({
   type: 'multi',
   settings: {
     initial: initSettings
@@ -31,5 +31,3 @@ const defaultSession = session({
     })
   }
 })
-
-export { defaultSession, initSetting, chatHistory }

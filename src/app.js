@@ -1,10 +1,34 @@
 /* eslint-disable space-before-function-paren */
 import 'dotenv/config'
-import { Bot, GrammyError } from 'grammy'
-import FileSessionStorage from './classes/FileSessionStorage'
-import { menuMain, menuNewPair } from './menus/menuMain'
+import { Bot, GrammyError, MemorySessionStorage } from 'grammy'
+import { menuMain, menuNewPair } from './menus/index'
 import { defaultSession } from './state'
 import { deleteMessage, resetPrompt, showMain, OnMessage } from './utils'
+import { existsSync, readFileSync, writeFileSync } from 'fs'
+
+export class FileSessionStorage extends MemorySessionStorage {
+  static load(key) {
+    const fname = `./storage/${key}.json`
+    if (existsSync(fname)) return JSON.parse(readFileSync(fname).toString())
+    return undefined
+  }
+
+  static store(key, value) {
+    const fname = `./storage/${key}.json`
+    writeFileSync(fname, JSON.stringify(value))
+  }
+
+  write(key, value) {
+    this.storage.set(key, value)
+    FileSessionStorage.store(key, value)
+  }
+
+  read(key) {
+    const value = this.storage.get(key)
+    if (value === undefined) return FileSessionStorage.load(key)
+    return value
+  }
+}
 
 const fileSession = async (ctx, next) => {
   const key = ctx.chat?.id.toString()
