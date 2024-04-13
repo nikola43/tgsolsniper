@@ -1,29 +1,34 @@
-import { chatHistory } from './chatHistory.js'
-import { menuMain } from './menuMain.js'
-import { menuNewPair } from './menuNewPair.js'
+import { menuMain, menuNewPair } from '../menus'
+import { chatHistory } from '../state'
 
-export const deleteMessage = async (ctx, id) => {
-  ctx.api.deleteMessage(ctx, id).catch(() => {})
-}
+// export const deleteMessage = async (ctx: any, id: number) => {
+//   ctx.api.ctx.api.deleteMessage(ctx.chat.id, id).catch(() => {})
+// }
 
-export const writeCtx = (ctx, key, value) => {
+export const writeCtx = (ctx: any, key: string, value: any) => {
   ctx.session.settings[key] = value
 }
 
-export const readCtx = (ctx, key) => {
+export const readCtx = (ctx: any, key: string) => {
   return ctx.session.settings[key]
 }
 
-export const showWindow = async (ctx, text, menu) => {
+export const showWindow = async (
+  ctx: any,
+  text: string,
+  menu: any,
+  uiClass: string
+) => {
   const message = ctx.update.message ?? ctx.update.callback_query.message
+
   if (
     ctx.session.temp.main &&
     ctx.session.temp.main.message_id !== message.message_id
   ) {
     if (!message.uiClass) {
-      deleteMessage(ctx, message.message_id)
+      ctx.api.deleteMessage(ctx.chat.id, message.message_id).catch(() => {})
     } else {
-      deleteMessage(ctx, ctx.session.temp.main.message_id)
+      ctx.api.deleteMessage(ctx.chat.id, ctx.session.temp.main.message_id).catch(() => {})
       if (ctx.session.temp.main.from.id === message.from.id) {
         ctx.session.temp.main = message
       } else ctx.session.temp.main = undefined
@@ -46,24 +51,24 @@ export const showWindow = async (ctx, text, menu) => {
   }
 }
 
-export const resetPrompt = async (ctx) => {
+export const resetPrompt = async (ctx: any) => {
   ctx.session.temp.prompt = undefined
 }
 
-export const showMain = async (ctx) => {
+export const showMain = async (ctx: any) => {
   const text = ['Welcome to solana bot\\!']
     .filter((item) => item !== undefined)
     .join('\n')
 
-  await showWindow(ctx, text, menuMain)
+  await showWindow(ctx, text, menuMain, 'main')
   ctx.session.temp.main.uiClass = 'main'
 }
 
-export const getStateCircle = (value) => {
+export const getStateCircle = (value: boolean) => {
   return value ? '🟢' : '🔴'
 }
 
-export const onMenuOutdated = async (ctx) => {
+export const onMenuOutdated = async (ctx: any) => {
   // ctx.session.settings.wallet = undefined
   // ctx.session.settings.recipient = undefined
   if (
@@ -73,23 +78,24 @@ export const onMenuOutdated = async (ctx) => {
   ) {
     ctx.answerCallbackQuery().catch(() => {})
     ctx.session.temp.main = ctx.update.callback_query.message
-    // ctx.api.deleteMessage(ctx, ctx.update.callback_query.message.message_id).catch(() => {})
+    // ctx.api.ctx.api.deleteMessage(ctx.chat.id, ctx.update.callback_query.message.message_id).catch(() => {})
   }
   showMain(ctx)
 }
 
-export const showMenu = async (ctx, menu, uiClass) => {
-  await showWindow(ctx, 'text', menu)
-  ctx.session.temp.main.uiClass = uiClass
-}
+// export const showMenu = async (ctx: any, menu: any, uiClass: string) => {
+//   await showWindow(ctx, 'text', menu)
+//   ctx.session.temp.main.uiClass = uiClass
+// }
 
-export const OnMessage = (ctx) => async () => {
+export const OnMessage = (ctx: any) => async () => {
   const prompt = ctx.session.temp.prompt
+  console.log('prompt', prompt)
   if (prompt && prompt.dataType === 'stopLossPercentage') {
     const stopLossPercentage = ctx.update.message.text
 
     // if (stopLossPercentage === 'Cancel') {
-    //   ctx.api.deleteMessage(ctx, ctx.message.message_id).catch(() => {})
+    //   ctx.api.ctx.api.deleteMessage(ctx.chat.id, ctx.message.message_id).catch(() => {})
     //   return
     // }
 
@@ -101,11 +107,15 @@ export const OnMessage = (ctx) => async () => {
     if (stopLossPercentage < 0 || stopLossPercentage > 100) {
       const msg = await ctx.reply('Please input a number between 0 and 100')
       setTimeout(() => {
-        ctx.api.deleteMessage(ctx, ctx.message.message_id).catch(() => {})
-        ctx.api.deleteMessage(ctx, msg.message_id).catch(() => {})
+        ctx.api.ctx.api
+          .deleteMessage(ctx.chat.id, ctx.message.message_id).catch(() => {})
+          .catch(() => {})
+        ctx.api.ctx.api
+          .deleteMessage(ctx.chat.id, msg.message_id).catch(() => {})
+          .catch(() => {})
 
-        deleteMessage(ctx, ctx.message.message_id)
-        deleteMessage(ctx, msg.message_id)
+        ctx.api.deleteMessage(ctx.chat.id, ctx.message.message_id).catch(() => {})
+        ctx.api.deleteMessage(ctx.chat.id, msg.message_id).catch(() => {})
       }, 3000)
       return
     }
@@ -113,15 +123,15 @@ export const OnMessage = (ctx) => async () => {
     console.log('stopLossPercentage', stopLossPercentage)
     writeCtx(ctx, 'stopLossPercentage', stopLossPercentage)
     resetPrompt(ctx)
-    deleteMessage(ctx, prompt.message_id)
-    deleteMessage(ctx, ctx.update.message.message_id)
+    ctx.api.deleteMessage(ctx.chat.id, prompt.message_id).catch(() => {})
+    ctx.api.deleteMessage(ctx.chat.id, ctx.update.message.message_id).catch(() => {})
 
-    await showWindow(ctx, 'text', menuNewPair)
+    await showWindow(ctx, 'text', menuNewPair, 'newpair')
   } else if (prompt && prompt.dataType === 'amount') {
     console.log('amount')
   } else if (prompt && prompt.dataType === 'recipient') {
     console.log('recipient')
   } else {
-    deleteMessage(ctx, ctx.update.message.message_id)
+    ctx.api.deleteMessage(ctx.chat.id, ctx.update.message.message_id).catch(() => {})
   }
 }

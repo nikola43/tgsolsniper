@@ -1,13 +1,13 @@
 /* eslint-disable space-before-function-paren */
 import { Menu } from '@grammyjs/menu'
+
+import { Keyboard } from 'grammy'
 import {
-  deleteMessage,
   getStateCircle,
+  onMenuOutdated,
   readCtx,
-  resetPrompt,
-  writeCtx,
-  onMenuOutdated
-} from './utils'
+  writeCtx
+} from '../utils/botutils'
 
 export const menuNewPair = new Menu('menu-newpair', { onMenuOutdated }).dynamic(
   (ctx, range) => {
@@ -32,10 +32,7 @@ export const menuNewPair = new Menu('menu-newpair', { onMenuOutdated }).dynamic(
         () => `Slop Loss ${readCtx(ctx, 'stopLossPercentage')}%`,
         async (ctx) => {
           const keyboard = new Keyboard()
-            .text('Cancel', (ctx) => {
-              resetPrompt(ctx)
-              deleteMessage(ctx, ctx.update.message.message_id)
-            })
+            .text('Cancel')
             .placeholder(
               'eg, 10% (if price drops 10% from the buy price, sell it)'
             )
