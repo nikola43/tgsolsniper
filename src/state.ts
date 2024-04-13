@@ -3,6 +3,7 @@ import { FileSessionStorage } from './classes/FileSessionStorage'
 import { Connection, Keypair, PublicKey } from '@solana/web3.js'
 import {
   MIN_POOL_SIZE,
+  PRIVATE_KEY,
   QUOTE_AMOUNT,
   RPC_ENDPOINT,
   RPC_WEBSOCKET_ENDPOINT
@@ -10,6 +11,7 @@ import {
 import { LiquidityPoolKeys, Token, TokenAmount } from '@raydium-io/raydium-sdk'
 import { SnipeType } from './types'
 import { MinimalMarketLayoutV3 } from './market'
+import RaydiumSwap from './classes/RaydiumSwap'
 export const chatHistory: any[] = []
 
 export interface MinimalTokenAccountData {
@@ -51,7 +53,7 @@ export interface SessionData {
     monitors: any
     main?: {
       message_id: number
-    },
+    }
     prompt?: {
       dataType: string
       message_id: number
@@ -118,6 +120,10 @@ export const fileSession = async (ctx: any, next: any) => {
 export const existingTokenAccounts: Map<string, MinimalTokenAccountData> =
   new Map<string, MinimalTokenAccountData>()
 
+export const connection = new Connection(RPC_ENDPOINT, {
+  wsEndpoint: RPC_WEBSOCKET_ENDPOINT
+})
+
 export const solanaData = {
   wallet: new Keypair(),
   quoteToken: Token.WSOL,
@@ -125,16 +131,18 @@ export const solanaData = {
   quoteMinPoolSizeAmount: new TokenAmount(Token.WSOL, MIN_POOL_SIZE, false),
   quoteTokenAssociatedAddress: new PublicKey(
     'So11111111111111111111111111111111111111112'
-  )
+  ),
+  raydiumSwap: new RaydiumSwap(connection, PRIVATE_KEY)
 }
 
 export const snipeList = <SnipeType[]>[]
 export const existingLiquidityPools: Set<string> = new Set<string>()
 export const knownTokens = new Set<string>()
-export const connection = new Connection(RPC_ENDPOINT, {
-  wsEndpoint: RPC_WEBSOCKET_ENDPOINT
-})
-
+export const buyList: {
+  baseMint: PublicKey
+  buyPricePerToken: number
+  poolId: PublicKey
+}[] = []
 /*
 
 

@@ -5,6 +5,7 @@ import { Bot, Context, GrammyError, SessionFlavor } from 'grammy'
 import { menuMain, menuNewPair } from './menus'
 import { SessionData, fileSession } from './state'
 import { resetPrompt, showMain, showWindow, writeCtx } from './utils/bot'
+import { init } from './utils'
 
 type MyContext = Context & SessionFlavor<SessionData>
 const bot = new Bot<MyContext>(process.env.BOT_TOKEN!)
@@ -60,6 +61,7 @@ bot.command('start', async (ctx) => {
     }
     ctx.session.temp.main = undefined
   }
+  init()
   showMain(ctx)
 })
 
