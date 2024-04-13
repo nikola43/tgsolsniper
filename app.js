@@ -36,11 +36,10 @@ class FileSessionStorage extends MemorySessionStorage {
 
 const initSettings = () => {
   return {
-    srcChainId: 1,
-    dstChainId: 1,
-    token: 'ETH',
-    amount: '0.01',
-    recipient: undefined
+    stopLossPercentage: 10,
+    mintDisabled: true,
+    minLiquidity: true,
+    amount: '0.01'
   }
 }
 
@@ -74,16 +73,16 @@ const fileSession = async (ctx, next) => {
 
 // import { BuyNewPairMenu, MainMenu } from "./menus";
 
-const sessionStorage = new MemorySessionStorage()
-sessionStorage.write('mintDisabled', false)
-sessionStorage.write('minLiquidity', false)
-sessionStorage.write('stopLossPercentage', 10)
-// const sessionWare = session({
-//   storage: sessionStorage,
-//   initial: () => ({
-//     mintDisabled: false,
-//   }),
-// });
+// const sessionStorage = new MemorySessionStorage()
+// sessionStorage.write('mintDisabled', false)
+// sessionStorage.write('minLiquidity', false)
+// sessionStorage.write('stopLossPercentage', 10)
+// // const sessionWare = session({
+// //   storage: sessionStorage,
+// //   initial: () => ({
+// //     mintDisabled: false,
+// //   }),
+// // });
 const chatHistory = []
 
 const showWindow = async (ctx, text, menu) => {
@@ -154,10 +153,6 @@ export const getStateCircle = (value) => {
   return value ? '🟢' : '🔴'
 }
 
-function readValue(key) {
-  return sessionStorage.read(key)
-}
-
 // type MyContext = Context & ConversationFlavor;
 // type MyConversation = Conversation<MyContext>;
 // get mintDisabled from session
@@ -174,7 +169,57 @@ export const BuyNewPairMenuV2 = new Menu('BuyNewPairMenu').dynamic(
   }
 )
 
-export const BuyNewPairMenu = new Menu('BuyNewPairMenu')
+const BuyNewPairMenu = new Menu('menu-main', { onMenuOutdated }).dynamic(
+  (ctx, range) => {
+    range
+      .text(
+        () =>
+          `${getStateCircle(
+            ctx.session.settings.mintDisabled
+          )} Check mint disabled`,
+        async (ctx) => {
+          console.log('mintDisabled')
+          ctx.session.settings.mintDisabled = !ctx.session.settings.mintDisabled
+          await ctx.menu.update()
+        }
+      )
+      .text(
+        () => 'Check min liquidity',
+        async (ctx) => {
+          console.log('minLiquidity')
+        }
+      )
+      .row()
+      .text(
+        () => `Slop Loss ${ctx.session.settings.stopLossPercentage}%`,
+        async (ctx) => {
+          const stopLossPercentage = ctx.session.settings.stopLossPercentage
+          console.log('stopLossPercentage', stopLossPercentage)
+
+          const keyboard = new Keyboard()
+            .text('Cancel', (ctx) => {
+              ctx.session.temp.prompt = undefined
+              ctx.api
+                .deleteMessage(ctx.chat.id, ctx.update.message.message_id)
+                .catch(() => {})
+            })
+            .placeholder(
+              'eg, 10% (if price drops 10% from the buy price, sell it)'
+            )
+            .oneTime()
+          await ctx.menu.update()
+          const prompt = await ctx.reply('Input stop loss percentage', {
+            reply_markup: keyboard
+          })
+          prompt.dataType = 'stopLossPercentage'
+          ctx.session.temp.prompt = prompt
+        }
+      )
+  }
+)
+
+/*
+export const BuyNewPairMenu2 = new Menu('BuyNewPairMenu')
   .text(
     () => `${getStateCircle(readValue('mintDisabled'))} Check mint disabled`,
     async (ctx) => {
@@ -224,8 +269,23 @@ export const BuyNewPairMenu = new Menu('BuyNewPairMenu')
       ctx.session.temp.prompt = prompt
     }
   )
+  */
 
-const menuMain = new Menu('menu-main', { onMenuOutdated })
+const menuMain = new Menu('menu-main', { onMenuOutdated }).dynamic(
+  (ctx, range) => {
+    range
+      .text('Buy New Pair', async (ctx) => {
+        await ctx.reply('Check out this menu:', {
+          reply_markup: BuyNewPairMenu
+        })
+      })
+      .row()
+      .text('B', (ctx) => ctx.reply('You pressed B!'))
+  }
+)
+
+/*
+const menuMain2 = new Menu('menu-main', { onMenuOutdated })
   .text('Buy New Pair', async (ctx) => {
     await ctx.reply('Check out this menu:', {
       reply_markup: BuyNewPairMenu
@@ -233,6 +293,7 @@ const menuMain = new Menu('menu-main', { onMenuOutdated })
   })
   .row()
   .text('B', (ctx) => ctx.reply('You pressed B!'))
+  */
 
 const bot = new Bot(process.env.BOT_TOKEN)
 bot.use(fileSession)
@@ -284,4 +345,27 @@ bot.command('start', async (ctx) => {
     ctx.session.temp.main = undefined
   }
   showMain(ctx)
+})
+
+bot.on('message', async (ctx) => {
+  const prompt = ctx.session.temp.prompt
+  if (prompt && prompt.dataType === 'stopLossPercentage') {
+    const stopLossPercentage = ctx.update.message.text
+    console.log('stopLossPercentage', stopLossPercentage)
+    ctx.session.settings.stopLossPercentage = stopLossPercentage
+    ctx.session.temp.prompt = undefined
+    ctx.api.deleteMessage(ctx.chat.id, prompt.message_id).catch(() => {})
+    ctx.api
+      .deleteMessage(ctx.chat.id, ctx.update.message.message_id)
+      .catch(() => {})
+    showMain(ctx)
+  } else if (prompt && prompt.dataType === 'amount') {
+    console.log('amount')
+  } else if (prompt && prompt.dataType === 'recipient') {
+    console.log('recipient')
+  } else {
+    ctx.api
+      .deleteMessage(ctx.chat.id, ctx.update.message.message_id)
+      .catch(() => {})
+  }
 })
