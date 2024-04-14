@@ -234,28 +234,28 @@ export async function processRaydiumPool(
     //let poolInfo = await formatAmmKeysById(id.toBase58(), connection);
     const poolKeys = await getRaydiumPoolKey(poolState, connection)
 
-    // console.log({
-    //   poolState,
-    //   poolKeys
-    // })
+    console.log({
+      poolState,
+      poolKeys
+    })
 
-    // await buy(id, poolState, poolInfo!);
-    // await buy(
-    //   ctx,
-    //   solanaData.wallet,
-    //   id,
-    //   solanaData.quoteTokenAssociatedAddress,
-    //   solanaData.quoteAmount,
-    //   poolState,
-    //   poolKeys
-    // )
-    // const tokenMetadata = await getTokenMetadata(poolState.baseMint, connection)
-    // ctx.reply(
-    //   'New token: ' +
-    //     tokenMetadata?.symbol +
-    //     ' ' +
-    //     abreviateAddress(poolState.baseMint.toBase58())
-    // )
+    //await buy(id, poolState, poolInfo!);
+    await buy(
+      ctx,
+      solanaData.wallet,
+      id,
+      solanaData.quoteTokenAssociatedAddress,
+      solanaData.quoteAmount,
+      poolState,
+      poolKeys
+    )
+    const tokenMetadata = await getTokenMetadata(poolState.baseMint, connection)
+    ctx.reply(
+      'New token: ' +
+        tokenMetadata?.symbol +
+        ' ' +
+        abreviateAddress(poolState.baseMint.toBase58())
+    )
   } catch (e) {
     console.log(e)
     //logger.debug(e);
