@@ -34,6 +34,7 @@ bot.use(menuMain)
 bot.start({
   onStart: (botInfo) => {
     console.log(`Bot ${botInfo.username} is up and running!`)
+    init()
   }
 })
 
@@ -61,7 +62,7 @@ bot.command('start', async (ctx) => {
     }
     ctx.session.temp.main = undefined
   }
-  init()
+  // init()
   showMain(ctx)
 })
 

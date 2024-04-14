@@ -200,20 +200,25 @@ export async function processRaydiumPool(
     } in liquidity`
   )
 
+  console.log({
+    poolState
+  })
+
   // if (!quoteMinPoolSizeAmount.isZero()) {
 
-  //   if (poolSize.lt(quoteMinPoolSizeAmount)) {
-  //     logger.warn(
-  //       {
-  //         mint: poolState.baseMint,
-  //         pooled: `${poolSize.toFixed()} ${quoteToken.symbol}`,
-  //       },
-  //       `Skipping pool, smaller than ${quoteMinPoolSizeAmount.toFixed()} ${quoteToken.symbol}`,
-  //       `Swap quote in amount: ${poolSize.toFixed()}`,
-  //     );
-  //     return;
-  //   }
-  // }
+  if (poolSize.lt(solanaData.quoteMinPoolSizeAmount)) {
+    logger.warn(
+      {
+        mint: poolState.baseMint,
+        pooled: `${poolSize.toFixed()} ${solanaData.quoteToken.symbol}`
+      },
+      `Skipping pool, smaller than ${solanaData.quoteMinPoolSizeAmount.toFixed()} ${
+        solanaData.quoteToken.symbol
+      }`,
+      `Swap quote in amount: ${poolSize.toFixed()}`
+    )
+    return
+  }
 
   // if (CHECK_IF_MINT_IS_RENOUNCED) {
   //   const mintOption = await checkMintable(poolState.baseMint);
@@ -229,23 +234,28 @@ export async function processRaydiumPool(
     //let poolInfo = await formatAmmKeysById(id.toBase58(), connection);
     const poolKeys = await getRaydiumPoolKey(poolState, connection)
 
+    // console.log({
+    //   poolState,
+    //   poolKeys
+    // })
+
     // await buy(id, poolState, poolInfo!);
-    await buy(
-      ctx,
-      solanaData.wallet,
-      id,
-      solanaData.quoteTokenAssociatedAddress,
-      solanaData.quoteAmount,
-      poolState,
-      poolKeys
-    )
-    const tokenMetadata = await getTokenMetadata(poolState.baseMint, connection)
-    ctx.reply(
-      'New token: ' +
-        tokenMetadata?.symbol +
-        ' ' +
-        abreviateAddress(poolState.baseMint.toBase58())
-    )
+    // await buy(
+    //   ctx,
+    //   solanaData.wallet,
+    //   id,
+    //   solanaData.quoteTokenAssociatedAddress,
+    //   solanaData.quoteAmount,
+    //   poolState,
+    //   poolKeys
+    // )
+    // const tokenMetadata = await getTokenMetadata(poolState.baseMint, connection)
+    // ctx.reply(
+    //   'New token: ' +
+    //     tokenMetadata?.symbol +
+    //     ' ' +
+    //     abreviateAddress(poolState.baseMint.toBase58())
+    // )
   } catch (e) {
     console.log(e)
     //logger.debug(e);
@@ -391,7 +401,7 @@ export async function findNewTokens(ctx: any) {
   const raydiumSubscriptionId = connection.onProgramAccountChange(
     RAYDIUM_LIQUIDITY_PROGRAM_ID_V4,
     async (updatedAccountInfo) => {
-      console.log('New token detected in pool')
+      // console.log('New token detected in pool')
       initDate = new Date()
       const key = updatedAccountInfo.accountId.toString()
       const poolState = LIQUIDITY_STATE_LAYOUT_V4.decode(
@@ -452,6 +462,7 @@ async function getTokenAmountAfterBuy(mint: PublicKey): Promise<number> {
     solanaData.wallet.publicKey,
     { mint }
   )
+  console.log('tokenAccountsAfterBuy', tokenAccountsAfterBuy)
   if (tokenAccountsAfterBuy.value.length > 0) {
     const accountInfoAfterBuy = tokenAccountsAfterBuy.value[0].account.data
     const decodedDataAfterBuy = AccountLayout.decode(accountInfoAfterBuy)
@@ -520,7 +531,7 @@ async function buy(
     }).compileToV0Message()
     const transaction = new VersionedTransaction(messageV0)
     transaction.sign([wallet, ...innerTransaction.signers])
-    const tx = await connection.sendTransaction(transaction)
+    // const tx = await connection.sendTransaction(transaction)
     // const endDate = new Date()
     // const diff = endDate.getTime() - initDate.getTime()
     // console.log(`Time to buy: ${diff} ms`)
@@ -534,10 +545,43 @@ async function buy(
     // const logs = simRes.value!.logs
     // console.log('simRes', simRes)
 
-    if (tx) {
+    const signature = await connection.sendRawTransaction(
+      transaction.serialize(),
+      {
+        preflightCommitment: COMMITMENT_LEVEL
+      }
+    )
+
+    if (signature && signature.length > 0) {
+      const confirmation = await connection.confirmTransaction(
+        {
+          signature,
+          lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+          blockhash: latestBlockhash.blockhash
+        },
+        COMMITMENT_LEVEL
+      )
+      if (!confirmation.value.err) {
+        logger.info(
+          {
+            mint: accountData.baseMint,
+            signature,
+            url: `https://solscan.io/tx/${signature}`
+          },
+          `Confirmed buy tx`
+        )
+      } else {
+        logger.debug(confirmation.value.err)
+        logger.info(
+          { mint: accountData.baseMint, signature },
+          `Error confirming buy tx`
+        )
+      }
+
       let tokenAmountAfterBuy = await getTokenAmountAfterBuy(
         accountData.baseMint
       )
+      console.log('tokenAmountAfterBuy', tokenAmountAfterBuy)
 
       const quoteAmountNumber = Number(quoteAmount.raw.toString())
       const buyPricePerToken =
@@ -556,7 +600,14 @@ async function buy(
         existingTokenAccounts.set(accountData.baseMint.toString(), tokenAccount)
       }
 
-      await ctx.reply('Bought token: ' + accountData.baseMint.toBase58() + ' at price: ' + buyPricePerToken + " " +`https://solscan.io/tx/${tx}?cluster=${NETWORK}`)
+      await ctx.reply(
+        'Bought token: ' +
+          accountData.baseMint.toBase58() +
+          ' at price: ' +
+          buyPricePerToken +
+          ' ' +
+          `https://solscan.io/tx/${signature}`
+      )
     } else {
       logger.error(
         { mint: accountData.baseMint },
@@ -594,7 +645,7 @@ async function buy(
     //   logger.info({ mint: accountData.baseMint, signature }, `Error confirming buy tx`);
     // }
   } catch (e) {
-    logger.debug(e)
+    console.log(e)
     logger.error({ mint: accountData.baseMint }, `Failed to buy token`)
   }
 }
