@@ -1,0 +1,287 @@
+import * as anchor from "@coral-xyz/anchor";
+import { Program } from "@coral-xyz/anchor";
+import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
+import { Connection, LAMPORTS_PER_SOL, ParsedInstruction, ParsedTransactionWithMeta, PartiallyDecodedInstruction, PublicKey, SYSVAR_RENT_PUBKEY, Transaction, TransactionInstruction } from "@solana/web3.js";
+import idl from "./constants/idl.json";
+import { COMMITMENT_LEVEL, EVENT_AUTH, MEMO_PROGRAM_ID, feeRecipient, programID } from "./constants";
+import { ConstructOptimalTransaction, buildBundle, getCurrentDateTime, getKeypairFromBs58, getRandomNumber, onBundleResult, parseSignatures } from "./utils";
+import { TOKEN_PROGRAM_ID } from "@raydium-io/raydium-sdk";
+import { createAssociatedTokenAccountInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
+import { searcherClient } from "jito-ts/dist/sdk/block-engine/searcher";
+
+const RPC_ENDPOINT = "https://solana-mainnet.core.chainstack.com/444a9722c51931fbf1f90e396ce78229"
+const RPC_WEBSOCKET_ENDPOINT = "wss://api.mainnet-beta.solana.com"
+
+export const connection = new Connection(RPC_ENDPOINT, {
+  wsEndpoint: RPC_WEBSOCKET_ENDPOINT
+})
+
+const searchInstruction = "InitializeMint2";
+const pumpProgramId = new PublicKey("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P");
+const PRIVATE_KEY = "2hb5igmrbFeuaskiFHnVY9AvwYtPnL1MDQeGPLzCgQ9YRCy5rFRiP6pNvK3P4cDn4qJUTCGRjV9WjzxosJTpkTgX"
+const signerKeypair = getKeypairFromBs58(PRIVATE_KEY);
+
+async function startConnection(
+  programAddress: PublicKey,
+  searchInstruction: string,
+  callBackFunction: Function
+): Promise<void> {
+  console.log("Monitoring logs for program:", programAddress.toString());
+  connection.onLogs(
+    programAddress,
+    ({ logs, err, signature }) => {
+      if (err) return;
+      // console.log("Logs found:", logs);
+      // if (logs && logs.some((log) => log.includes(searchInstruction))) {
+      if (logs) {
+        callBackFunction(signature);
+      }
+    },
+    "finalized"
+  );
+}
+
+async function fetchPumpPairs(txId: string) {
+  try {
+    const tx = await connection.getParsedTransaction(txId, {
+      maxSupportedTransactionVersion: 0,
+      commitment: "confirmed",
+    });
+
+    //@ts-ignore
+    const txAccounts = (tx?.transaction.message.instructions).find(
+      (ix) =>
+        ix.programId.toBase58() === pumpProgramId.toBase58()
+      // @ts-ignore
+    ).accounts as PublicKey[];
+
+    if (!txAccounts) {
+      console.log("No accounts found in the transaction.");
+      return;
+    }
+
+
+    if (txAccounts.length === 14) {
+      console.log("Accounts found:", txAccounts.length);
+
+      console.log(
+        `Signature for ${searchInstruction}:`,
+        `https://solscan.io/tx/${txId}`
+      );
+
+      let neededInstruction: PartiallyDecodedInstruction | ParsedInstruction | null = null;
+      let parsedSig: ParsedTransactionWithMeta | null = null
+
+      const confirmed_sigs = [txId]
+      const parsed_sigs = await parseSignatures(connection, confirmed_sigs);
+
+
+      for (var i = 0; i < parsed_sigs.length; i++) {
+        try {
+          const sig = parsed_sigs[i];
+          if (!sig) { continue }
+
+          const blockTime = sig.blockTime;
+          const currentTime = Math.floor(Date.now() / 1000);
+
+          //@ts-ignore
+          const instructions = (sig.transaction.message.instructions);
+          for (let ix of instructions) {
+            try {
+              const hasNeededProgramId = (ix.programId.toBase58() == programID);
+              //@ts-ignore
+              //console.log(ix.accounts.length);
+              //console.log(ix.programId.toBase58());
+              //console.log(confirmed_sigs[i])
+
+
+              //@ts-ignore
+              const hasNeededAccounts = ix.accounts.length == 14;
+
+              if (hasNeededProgramId && hasNeededAccounts) {
+                //transaction should should be processed within one minute of detecting it here
+                if (!blockTime || currentTime - blockTime > 60) {
+                  console.log(`${getCurrentDateTime()} Old Bonding Curve detected, Ignoring stale pool...`)
+                } else {
+                  neededInstruction = ix;
+                  parsedSig = sig
+                  break
+                }
+              }
+            } catch (e) {
+              continue
+            }
+          }
+          if (neededInstruction) { break };
+
+        } catch (e) {
+          continue
+        }
+        if (neededInstruction) { break };
+      }
+
+      if (!neededInstruction) { return }
+
+      const numberAmount = 0.1;
+      console.log(`\nFound new pool/bonding-curve, Sniping with ${numberAmount} SOL..\n\n`);
+
+      //initializing program
+      const program = new Program(idl as anchor.Idl, programID, new anchor.AnchorProvider(connection, new NodeWallet(signerKeypair), anchor.AnchorProvider.defaultOptions()));
+      const maxRetries = 5;
+
+      const accounts = txAccounts
+      const mint = accounts[0];
+      const mintAuth = accounts[1];
+      const bondingCurve = accounts[2];
+      const bondingCurveAta = accounts[3];
+      const globalState = accounts[4];
+      const user = signerKeypair.publicKey;
+      const userAta = getAssociatedTokenAddressSync(mint, user, true);
+      const signerTokenAccount = getAssociatedTokenAddressSync(mint, user, true, TOKEN_PROGRAM_ID,);
+
+      const [bondingCurveData, mintData, account] = await Promise.all([
+        program.account.bondingCurve.fetch(bondingCurve),
+        connection.getParsedAccountInfo(mint),
+        connection.getAccountInfo(signerTokenAccount, 'processed')
+      ]);
+
+
+      //@ts-ignore
+      const decimals = mintData.value?.data.parsed.info.decimals;
+      const virtualTokenReserves = (bondingCurveData.virtualTokenReserves as any).toNumber();
+      const virtualSolReserves = (bondingCurveData.virtualSolReserves as any).toNumber();
+
+      const adjustedVirtualTokenReserves = virtualTokenReserves / (10 ** decimals);
+      const adjustedVirtualSolReserves = virtualSolReserves / LAMPORTS_PER_SOL;
+
+
+      const virtualTokenPrice = adjustedVirtualSolReserves / adjustedVirtualTokenReserves;
+      const finalAmount = (numberAmount / virtualTokenPrice);
+
+      let retries = 0;
+      while (retries <= (maxRetries ? Math.max(1, maxRetries) : 5)) {
+
+        //creating tx;
+        const tx = new Transaction();
+
+        if (!account) {
+          tx.add(
+            createAssociatedTokenAccountInstruction(
+              user,
+              signerTokenAccount,
+              user,
+              mint,
+            )
+          )
+        };
+
+        const maxSolCost = Number(0.1);
+        let priorityFee: number = 1000000;
+
+        const snipeIx = await program.methods.buy(
+          new anchor.BN((finalAmount * (10 ** decimals))),
+          new anchor.BN(maxSolCost * LAMPORTS_PER_SOL),
+        ).accounts({
+          global: globalState,
+          feeRecipient: feeRecipient,
+          mint: mint,
+          bondingCurve: bondingCurve,
+          associatedBondingCurve: bondingCurveAta,
+          associatedUser: userAta,
+          user: user,
+          systemProgram: anchor.SystemProgram.programId,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          rent: SYSVAR_RENT_PUBKEY,
+          eventAuthority: EVENT_AUTH,
+          program: program.programId,
+        }).instruction();
+        tx.add(snipeIx);
+
+
+        const memoix = new TransactionInstruction({
+          programId: new PublicKey(MEMO_PROGRAM_ID),
+          keys: [],
+          data: Buffer.from(getRandomNumber().toString(), "utf8")
+        })
+        tx.add(memoix);
+
+        //preparing transaction
+        const hashAndCtx = await connection.getLatestBlockhashAndContext('processed');
+        const recentBlockhash = hashAndCtx.value.blockhash;
+        const lastValidBlockHeight = hashAndCtx.value.lastValidBlockHeight;
+
+        tx.recentBlockhash = recentBlockhash;
+        tx.lastValidBlockHeight = lastValidBlockHeight;
+        tx.feePayer = user;
+
+        const finalTx = await ConstructOptimalTransaction(tx, connection, priorityFee);
+
+        finalTx.sign(signerKeypair);
+
+        const jitoAuthKeypair = getKeypairFromBs58(jitoAuthPrivateKey);
+
+
+        const bundleTransactionLimit = 1;
+        const search = searcherClient(blockEngineUrl, jitoAuthKeypair);
+
+        const bundleCtx = await buildBundle(
+          search,
+          bundleTransactionLimit,
+          finalTx,
+          signerKeypair,
+          jitoTip,
+        );
+
+        if (bundleCtx != null) {
+          const bundleResult = await onBundleResult(search);
+          if (bundleResult[0]) {
+            console.log('Successful! ');
+            process.exit(0);
+          } else {
+            console.log('Failed to send Bundle, retrying... (ctrl + c to abort)');
+            console.log('Retries left: ', maxRetries - retries);
+            bundleResult[1]()
+            retries += 1;
+            continue
+          }
+        } else {
+          throw new Error
+        }
+      }
+
+    }
+
+
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+async function findNewTokens() {
+  connection.onProgramAccountChange(
+    pumpProgramId,
+    async (updatedAccountInfo) => {
+      // const key = updatedAccountInfo.accountId.toString()
+      // console.log("New token found:", key);
+
+
+      console.log("Pool state:", updatedAccountInfo);
+
+    }, COMMITMENT_LEVEL)
+}
+
+async function findNewTokensV2() {
+  startConnection(
+    pumpProgramId,
+    searchInstruction,
+    fetchPumpPairs
+  ).catch(console.error);
+}
+
+async function main() {
+  findNewTokensV2();
+
+
+}
+
+main().catch(console.error);
